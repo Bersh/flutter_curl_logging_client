@@ -11,24 +11,33 @@ class LoggingHttpClient extends http.BaseClient {
 
   final IOClient _client = IOClient();
 
-  LoggingHttpClient({this.requestTimeout});
+  LoggingHttpClient({this.requestTimeout}) {
+    Fimber.plantTree(DebugTree(useColors: true));
+  }
 
+  @override
   Future<Response> head(url, {Map<String, String>? headers}) => _sendUnstreamed("HEAD", url, headers);
 
+  @override
   Future<Response> get(url, {Map<String, String>? headers}) => _sendUnstreamed("GET", url, headers);
 
+  @override
   Future<Response> post(url, {Map<String, String>? headers, Object? body, Encoding? encoding}) =>
       _sendUnstreamed("POST", url, headers, body, encoding);
 
+  @override
   Future<Response> put(url, {Map<String, String>? headers, Object? body, Encoding? encoding}) =>
       _sendUnstreamed("PUT", url, headers, body, encoding);
 
+  @override
   Future<Response> patch(url, {Map<String, String>? headers, Object? body, Encoding? encoding}) =>
       _sendUnstreamed("PATCH", url, headers, body, encoding);
 
+  @override
   Future<Response> delete(Uri url, {Map<String, String>? headers, Object? body, Encoding? encoding}) =>
       _sendUnstreamed("DELETE", url, headers);
 
+  @override
   Future<String> read(url, {Map<String, String>? headers}) {
     return get(url, headers: headers).then((response) {
       _checkResponseSuccess(url, response);
@@ -45,7 +54,7 @@ class LoggingHttpClient extends http.BaseClient {
 
   Future<StreamedResponse> send(BaseRequest request) => _client.send(request);
 
-  Future<Response> _sendUnstreamed(String method, url, Map<String, String>? headers, [body, Encoding? encoding]) async {
+  Future<Response> _sendUnstreamed(String method, url, Map<String, String>? headers, [Object? body, Encoding? encoding]) async {
     if (url is String) url = Uri.parse(url);
     var request = new Request(method, url);
 
@@ -68,28 +77,31 @@ class LoggingHttpClient extends http.BaseClient {
     for (MapEntry<String, String> entry in headers?.entries ?? {}) {
       curlString += _getHeaderString(entry);
     }
-    curlString += "\"$body\" ";
+    if (body != null) {
+      curlString += "-d \"$body\" ";
+    }
     curlString += url.toString();
     curlString += " -L";
+    Fimber.d("================================================================\n");
     Fimber.d("Sending request: \n $curlString");
+    Fimber.d("================================================================\n\n");
 
     var stream = requestTimeout == null
         ? await send(request)
         : await send(request).timeout(requestTimeout ?? Duration(seconds: 0));
 
     return Response.fromStream(stream).then((Response response) {
-      // var responseData = ResponseData.fromHttpResponse(response);
       Fimber.d("================================================================");
       Fimber.d("RESPONSE");
       Fimber.d("Status code: ${response.statusCode}");
-      // Fimber.d("Headers:");
+      // Fimber.d("Headers:"); //TODO add headers?
       // for (MapEntry<String, String> entry in response.headers.entries) {
       //   Fimber.d("${entry.key}: ${entry.value}");
       // }
       Fimber.d("----------------------------------------------------------------");
       Fimber.d("Body: ${response.body}");
       Fimber.d("Body Json: ${json.decode(response.body)}");
-      Fimber.d("================================================================");
+      Fimber.d("================================================================\n\n");
 
       return response;
     });
